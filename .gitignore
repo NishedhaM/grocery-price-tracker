@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 venv/
 ~$*
+*.db-journal
+*.db-wal
+*.db-shm
