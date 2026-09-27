@@ -1,0 +1,34 @@
+name: Daily grocery price scrape
+
+on:
+  schedule:
+    # 22:30 UTC = 04:00 Asia/Colombo (next day) — adjust to taste.
+    - cron: "30 22 * * *"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write   # needed to commit the updated database back to the repo
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily scrape
+        run: python -m src.run_daily
+
+      - name: Commit updated database
+        run: |
+          git config user.name "grocery-price-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add db/grocery_prices.db
+          git diff --cached --quiet || git commit -m "Daily scrape: $(date -u +%Y-%m-%d)"
+          git push
