@@ -25,6 +25,21 @@ jobs:
       - name: Run daily scrape
         run: python -m src.run_daily
 
+      - name: Verify database integrity
+        # A run can crash mid-write and leave db/grocery_prices.db
+        # truncated or page-corrupted on disk. Check it BEFORE the
+        # commit step decides what to do with it — a corrupted file
+        # must never be allowed to overwrite the last good commit.
+        if: always()
+        id: integrity
+        run: |
+          if python3 -c "import sqlite3, sys; conn = sqlite3.connect('db/grocery_prices.db'); result = conn.execute('PRAGMA integrity_check').fetchall(); sys.exit(0 if result == [('ok',)] else 1)"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::db/grocery_prices.db failed PRAGMA integrity_check after this run. This run's changes will be discarded so a corrupted database is never committed; the last good commit is kept."
+          fi
+
       - name: Commit updated database
         # always() so a store failing for real (a changed page, a
         # rotated campaign ID, a blocked bot check) never causes the
@@ -32,10 +47,17 @@ jobs:
         # discarded — run_daily.py already tolerates a single store
         # failing (that's what its non-zero exit code is reporting),
         # so this step should still save whatever *did* come in.
+        # But if the integrity check above failed, the file itself is
+        # broken (not just incomplete), so discard it instead of
+        # committing it — git checkout restores the last good commit.
         if: always()
         run: |
           git config user.name "grocery-price-bot"
           git config user.email "actions@users.noreply.github.com"
+          if [ "${{ steps.integrity.outputs.ok }}" != "true" ]; then
+            echo "Discarding db/grocery_prices.db from this run — it failed the integrity check."
+            git checkout -- db/grocery_prices.db
+          fi
           git add db/grocery_prices.db
           git diff --cached --quiet || git commit -m "Daily scrape: $(date -u +%Y-%m-%d)"
           git push
