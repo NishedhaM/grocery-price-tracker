@@ -2,8 +2,8 @@ name: Daily grocery price scrape
 
 on:
   schedule:
-    # 22:30 UTC = 04:00 Asia/Colombo (next day) — adjust to taste.
-    - cron: "30 22 * * *"
+    # 16:30 UTC = 22:00 (10 PM) Asia/Colombo — adjust to taste.
+    - cron: "30 16 * * *"
   workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
 
 permissions:
