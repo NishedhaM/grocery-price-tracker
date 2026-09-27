@@ -37,6 +37,8 @@ CREDIT_CARD_SCRAPERS = {
     "combank": creditcards.scrape_combank,
     "hnb": creditcards.scrape_hnb,
     "sampath": creditcards.scrape_sampath,
+    "boc": creditcards.scrape_boc,
+    "peoples": creditcards.scrape_peoples,
 }
 
 

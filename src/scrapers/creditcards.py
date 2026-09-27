@@ -1,12 +1,12 @@
 """
 Credit card promotion scraper (OBJ2's Stream C).
 
-Covers four banks now: Seylan (static HTML, no browser needed),
-and Commercial Bank / HNB / Sampath (added after checking each
-bank's site directly on 6 Sept 2026 — see notes per scraper below).
-Not covered: BOC and Peoples' Bank (proposal's other two of five) —
-their sites weren't checked yet; add them the same way once you've
-looked at their promo pages.
+Covers six banks now: Seylan / BOC / People's Bank (all static HTML,
+no browser needed), and Commercial Bank / HNB / Sampath (need a real
+rendered browser — see notes per scraper below). BOC and People's
+Bank were added 27 Sept 2026 after checking each bank's supermarket
+offers page directly; all five of the original proposal's banks plus
+Sampath are now automated.
 
 Design: rather than hand-write a bespoke parser per bank (their page
 layouts differ), every bank's page text gets fed through one shared
@@ -37,6 +37,19 @@ CARD_TYPE_PATTERNS = [
     "World Mastercard", "Mastercard World", "Mastercard Platinum",
     "Mastercard Freedom", "Seylan Premier Credit Cards",
     "Seylan Credit Cards", "All Seylan Credit Cards",
+]
+
+# Broader, bank-agnostic fallback used by the generic keyword-window
+# scanner (_extract_grocery_promos) for banks whose offer pages just say
+# "Credit Cards" / "Debit Cards" rather than naming a specific tier —
+# BOC and People's Bank both do this. Order matters: checked in order,
+# and a later, more specific match (e.g. "Credit & Debit Card") is kept
+# instead of the generic "Credit Card" it also contains.
+GENERIC_CARD_TYPE_PATTERNS = [
+    "Credit\\s*&\\s*Debit\\s*Cards?", "Credit\\s+and\\s+Debit\\s+Cards?",
+    "Credit\\s+Cardholders", "Debit\\s+Cardholders",
+    "Credit\\s+Cards?", "Debit\\s+Cards?",
+    "Visa", "Mastercard", "American\\s+Express", "Amex",
 ]
 
 
@@ -192,11 +205,69 @@ def _get_rendered_text(url: str, *, click_text: str | None = None, load_more_cli
         driver.quit()
 
 
+VALID_UNTIL_PATTERNS = [
+    r"offer\s+valid.*", r"valid\s+(?:on|until|till|from).*", r"book(?:ing)?\s+valid.*",
+    r"expir\w*\s*date\s*:?\s*.*", r"expir\w*\s*:?\s*.*",
+    r"till\s+\w+\s+\d{1,2},?\s+\d{4}.*",  # "Till October 31, 2026"
+    r"\(.*\b\d{4}\b.*\)",  # "(13th September & 26th September 2026)" — a parenthetical with a year
+]
+
+
+def _nearest_line_match(lines: list[str], i: int, patterns: list[str], *,
+                         before: int = 4, after: int = 2) -> str:
+    """Search the lines around index i for the first pattern match,
+    checking lines closer to i before farther ones (i+1, i-1, i+2, i-2, ...)
+    so a match belonging to an *adjacent* promo block (common when blocks
+    are only a handful of lines long, as on BOC/People's Bank's pages)
+    doesn't get picked up over the actual match right next to this one."""
+    order = []
+    for d in range(1, max(before, after) + 1):
+        if d <= after and i + d < len(lines):
+            order.append(i + d)
+        if d <= before and i - d >= 0:
+            order.append(i - d)
+
+    for idx in order:
+        for pat in patterns:
+            m = re.search(pat, lines[idx], re.IGNORECASE)
+            if m:
+                return m.group(0).strip()
+    return ""
+
+
+def _match_card_types(lines: list[str], i: int, *, before: int = 4, after: int = 2) -> str:
+    """Pick out card-type mentions (Visa Infinite, plain "Credit Cards",
+    etc.) from the lines around a promo. Checks GENERIC_CARD_TYPE_PATTERNS
+    against lines nearest to i first, and skips a match already contained
+    in a more specific one already found (so "BOC Credit & Debit Cards"
+    doesn't also record a redundant plain "Credit Card")."""
+    order = [i]
+    for d in range(1, max(before, after) + 1):
+        if d <= after and i + d < len(lines):
+            order.append(i + d)
+        if d <= before and i - d >= 0:
+            order.append(i - d)
+
+    found: list[str] = []
+    for idx in order:
+        for pat in GENERIC_CARD_TYPE_PATTERNS:
+            m = re.search(pat, lines[idx], re.IGNORECASE)
+            if not m:
+                continue
+            matched = m.group(0)
+            if any(matched.lower() in prev.lower() for prev in found):
+                continue
+            found.append(matched)
+    return ", ".join(found)
+
+
 def _extract_grocery_promos(text: str, *, bank: str, url: str) -> list[dict]:
     """Scan rendered page text for lines mentioning a grocery chain, and
-    pull a discount % / valid-date from the surrounding lines. Generic
-    across banks because every one of them renders promos as a repeating
-    block of (discount, category, description, valid-date) lines."""
+    pull a discount % / valid-date / card type from the nearby lines.
+    Generic across banks because every one of them renders promos as a
+    repeating block of (discount, category, description, valid-date,
+    card type) lines — matches are taken from the closest surrounding
+    lines first so a short block's info doesn't bleed into its neighbor's."""
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     rows = []
     seen = set()
@@ -207,17 +278,13 @@ def _extract_grocery_promos(text: str, *, bank: str, url: str) -> list[dict]:
         if not merchant:
             continue
 
-        window = lines[max(0, i - 4): i + 3]
-        window_text = " | ".join(window)
-
-        discount_match = re.search(r"(\d+\s?%)", window_text)
-        discount = discount_match.group(1) if discount_match else ""
-
-        valid_match = re.search(
-            r"(offer\s+valid[^|]*|valid\s+(?:on|until|till|from)[^|]*|book(?:ing)?\s+valid[^|]*)",
-            window_text, re.IGNORECASE,
-        )
-        valid_until = valid_match.group(1).strip() if valid_match else ""
+        discount = _nearest_line_match(lines, i, [r"\d+\s?%"])
+        # Tighter radius than discount/card_types: a valid-until line is
+        # almost always right next to its own promo, and a smaller radius
+        # keeps a block with no recognizable date line (rather than
+        # reaching further and grabbing a *neighboring* block's date).
+        valid_until = _nearest_line_match(lines, i, VALID_UNTIL_PATTERNS, before=2, after=2)
+        card_types = _match_card_types(lines, i)
 
         key = (merchant, line)
         if key in seen:
@@ -228,7 +295,7 @@ def _extract_grocery_promos(text: str, *, bank: str, url: str) -> list[dict]:
             "bank": bank,
             "merchant": merchant.title(),
             "title": line,
-            "card_types": "",
+            "card_types": card_types,
             "discount": discount,
             "valid_until": valid_until,
             "description": line,
@@ -265,6 +332,57 @@ def scrape_sampath(logged_date: str | None = None) -> list[dict]:
     logged_date = logged_date or dt.date.today().isoformat()
     text = _get_rendered_text(config.SAMPATH_URL, wait_seconds=10)
     rows = _extract_grocery_promos(text, bank="Sampath", url=config.SAMPATH_URL)
+    for r in rows:
+        r["logged_date"] = logged_date
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# BOC / People's Bank: confirmed 27 Sept 2026 by loading each page in a real
+# browser — both render their offer cards as plain server-side HTML (no
+# React/JS hydration needed to see them, unlike ComBank/HNB/Sampath above),
+# so a plain requests.get() is enough; no Selenium/Chrome dependency added.
+# ---------------------------------------------------------------------------
+
+def _get_static_text(url: str) -> str:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    }
+    resp = requests.get(url, headers=headers, timeout=20)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+    for tag in soup.find_all(["header", "footer", "nav", "script", "style"]):
+        tag.decompose()
+    text = soup.get_text("\n", strip=True)
+    # Printed to the Actions log (not stored in the DB) — same diagnostic
+    # idea as _get_rendered_text, so a 0-row run is easy to tell apart from
+    # "page genuinely had no grocery promos today" vs. "page didn't load".
+    print(f"[info] {url}: page text is {len(text)} chars")
+    return text
+
+
+def scrape_boc(logged_date: str | None = None) -> list[dict]:
+    logged_date = logged_date or dt.date.today().isoformat()
+    try:
+        text = _get_static_text(config.BOC_SUPERMARKETS_URL)
+    except requests.RequestException as exc:
+        print(f"[warn] BOC page failed ({config.BOC_SUPERMARKETS_URL}): {exc}")
+        return []
+    rows = _extract_grocery_promos(text, bank="BOC", url=config.BOC_SUPERMARKETS_URL)
+    for r in rows:
+        r["logged_date"] = logged_date
+    return rows
+
+
+def scrape_peoples(logged_date: str | None = None) -> list[dict]:
+    logged_date = logged_date or dt.date.today().isoformat()
+    try:
+        text = _get_static_text(config.PEOPLESBANK_SUPERMARKETS_URL)
+    except requests.RequestException as exc:
+        print(f"[warn] People's Bank page failed ({config.PEOPLESBANK_SUPERMARKETS_URL}): {exc}")
+        return []
+    rows = _extract_grocery_promos(text, bank="People's Bank", url=config.PEOPLESBANK_SUPERMARKETS_URL)
     for r in rows:
         r["logged_date"] = logged_date
     return rows

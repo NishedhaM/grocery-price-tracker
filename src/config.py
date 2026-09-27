@@ -112,4 +112,12 @@ COMBANK_PROMOTIONS_URL = "https://www.combank.lk/rewards-promotions"
 HNB_PROMOTIONS_URL = "https://www.hnb.lk/card-promotion"
 SAMPATH_URL = "https://www.sampath.lk"  # promos are in the homepage's "Latest Card Promotions" carousel
 
+# Confirmed live 27 Sept 2026 by loading each page in a real browser.
+# Both of these are plain server-rendered pages (no JS needed to see the
+# offer cards), unlike ComBank/HNB/Sampath above, so their scrapers use
+# a plain requests.get() rather than Selenium.
+BOC_SUPERMARKETS_URL = "https://www.boc.lk/personal-banking/card-offers/supermarkets"
+# ?cardType=credit_card filters out the separate debit-card list on the same page.
+PEOPLESBANK_SUPERMARKETS_URL = "https://www.peoplesbank.lk/promotion-category/supermarkets/?cardType=credit_card"
+
 GROCERY_KEYWORDS = ["cargills", "food city", "keells", "arpico", "glomark", "spar", "laugfs"]

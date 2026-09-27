@@ -6,13 +6,12 @@ consistent schema, satisfying OBJ1's "systematically collect... daily
 promotional pricing data" without you running anything by hand.
 
 **Scope for now:** Keells, Cargills/Food City, Arpico for pricing (the
-three chains recommended in the revised plan), plus **four** banks for
-credit card promos — Seylan, Commercial Bank, HNB, and Sampath.
+three chains recommended in the revised plan), plus **six** banks for
+credit card promos — Seylan, Commercial Bank, HNB, Sampath, BOC, and
+People's Bank (see Section 2 for how the last two were added).
 Glomark and SPAR pricing data you already collected is imported as
 historical rows, but their scrapers aren't wired into the daily job
-yet — add them the same way if you decide to bring them back in. BOC
-and Peoples' Bank (the other two of the proposal's five) aren't
-automated yet — see Section 2.
+yet — add them the same way if you decide to bring them back in.
 
 Getting the bank promos required a real rendered browser, not a plain
 HTTP request: Commercial Bank's site returns a 403 to a plain fetch
@@ -76,21 +75,25 @@ scripts/import_historical.py   one-time import of your June–July 2026 snapshot
   pre-installed, so this should work out of the box — but run it once
   via **Actions → Run workflow** and check the log before assuming it's
   reliable long-term.
-- **Four banks are automated (Seylan, Commercial Bank, HNB, Sampath);
-  BOC and Peoples' Bank are not.** The original generic scraper
+- **All six banks are automated now (Seylan, Commercial Bank, HNB,
+  Sampath, BOC, People's Bank).** The original generic scraper
   (`credit_card.py` in your old project) tried five banks with a plain
   HTTP client and found just 2 offers total — this kit gets real,
-  structured supermarket-specific promos from four by using a real
-  browser (see above) and by finding each bank's *current* promotions
-  URL, since two of the URLs in the old script were stale
-  (`combank.lk/promotions` 404s now — the live page moved to
-  `combank.lk/rewards-promotions`; `sampath.lk/personal/cards/promotions`
-  404s too — Sampath's promos live in its homepage carousel instead,
-  which is what `scrape_sampath()` reads). Log BOC/Peoples' Bank by
-  hand weekly using `src/scrapers/creditcards.py`'s
-  `log_manual_promo()` helper (a few lines of Python, see its
-  docstring) or by inserting directly into the `credit_card_promos`
-  table. To add another Seylan merchant page, find its URL under
+  structured supermarket-specific promos from all of them by using a
+  real browser for the three that need JS to render (ComBank/HNB/Sampath)
+  and finding each bank's *current* promotions URL, since two of the
+  URLs in the old script were stale (`combank.lk/promotions` 404s now —
+  the live page moved to `combank.lk/rewards-promotions`;
+  `sampath.lk/personal/cards/promotions` 404s too — Sampath's promos
+  live in its homepage carousel instead, which is what
+  `scrape_sampath()` reads). BOC and People's Bank were added 27 Sept
+  2026 — both have a dedicated supermarket-offers page that's plain
+  server-rendered HTML, so their scrapers use `requests` directly
+  rather than Selenium (`config.BOC_SUPERMARKETS_URL`,
+  `config.PEOPLESBANK_SUPERMARKETS_URL`). `log_manual_promo()` in
+  `src/scrapers/creditcards.py` is still there if you ever need to log
+  a promo by hand for a bank not in this list. To add another Seylan
+  merchant page, find its URL under
   seylan.lk/promotions/cards/supermarket/ and add it to
   `SEYLAN_PROMO_PAGES` in `config.py`.
 - **The Commercial Bank / HNB / Sampath parser is a generic keyword
