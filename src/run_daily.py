@@ -56,6 +56,17 @@ def main() -> int:
     conn = db.get_connection()
     db.init_db(conn)
 
+    def _safe_log_run(run_at: str, store: str, status: str, *,
+                       rows_written: int = 0, message: str = "") -> None:
+        """db.log_run itself failing (e.g. the same DB error that just
+        failed the scrape) must never take down the whole run — every
+        remaining store still deserves its own attempt. Worst case, this
+        store's outcome just doesn't get an entry in run_log."""
+        try:
+            db.log_run(conn, run_at, store, status, rows_written=rows_written, message=message)
+        except Exception as log_exc:  # noqa: BLE001
+            print(f"[warn] could not write run_log for {store}: {log_exc}", file=sys.stderr)
+
     exit_code = 0
     for store in requested:
         run_at = dt.datetime.utcnow().isoformat()
@@ -64,10 +75,11 @@ def main() -> int:
             try:
                 rows = SCRAPERS[store](scrape_date)
                 n = db.upsert_many(conn, rows)
-                db.log_run(conn, run_at, store, "ok", rows_written=n)
+                _safe_log_run(run_at, store, "ok", rows_written=n)
                 print(f"[ok] {store}: {n} rows for {scrape_date}")
             except Exception as exc:  # noqa: BLE001 - a single store must never kill the run
-                db.log_run(conn, run_at, store, "failed", rows_written=0, message=str(exc))
+                conn.rollback()  # clear any half-finished transaction before the next store
+                _safe_log_run(run_at, store, "failed", rows_written=0, message=str(exc))
                 print(f"[FAILED] {store}: {exc}", file=sys.stderr)
                 exit_code = 1
             continue
@@ -77,10 +89,11 @@ def main() -> int:
                 rows = CREDIT_CARD_SCRAPERS[store](scrape_date)
                 for row in rows:
                     db.upsert_credit_card_promo(conn, row)
-                db.log_run(conn, run_at, store, "ok", rows_written=len(rows))
+                _safe_log_run(run_at, store, "ok", rows_written=len(rows))
                 print(f"[ok] {store}: {len(rows)} credit-card promo rows for {scrape_date}")
             except Exception as exc:  # noqa: BLE001
-                db.log_run(conn, run_at, store, "failed", rows_written=0, message=str(exc))
+                conn.rollback()
+                _safe_log_run(run_at, store, "failed", rows_written=0, message=str(exc))
                 print(f"[FAILED] {store}: {exc}", file=sys.stderr)
                 exit_code = 1
             continue
