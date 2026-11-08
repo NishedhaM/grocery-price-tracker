@@ -22,10 +22,12 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-from .. import config
+from .. import basket, config
+import time
 
 
-def _to_row(card, *, scrape_date: str, scraped_at: str) -> dict | None:
+def _to_row(card, *, scrape_date: str, scraped_at: str, source_stream: str = "promotion",
+            category: str = "special_offers") -> dict | None:
     name_tag = (card.select_one(".caption h4 a") or card.select_one("h4 a")
                 or card.select_one(".product-title a"))
     if not name_tag:
@@ -59,8 +61,8 @@ def _to_row(card, *, scrape_date: str, scraped_at: str) -> dict | None:
         "scrape_date": scrape_date,
         "scraped_at": scraped_at,
         "store": "arpico",
-        "source_stream": "promotion",
-        "category": "special_offers",
+        "source_stream": source_stream,
+        "category": category,
         "item_name": name,
         "sku": None,
         "unit": None,
@@ -70,8 +72,8 @@ def _to_row(card, *, scrape_date: str, scraped_at: str) -> dict | None:
         "mrp": mrp,
         "promo_price": price if (mrp and price and mrp != price) else None,
         "discount_pct": round((mrp - price) / mrp * 100, 2) if (mrp and price and mrp) else None,
-        "promo_type": "special_offer",
-        "is_promo": 1,
+        "promo_type": "special_offer" if (mrp and price and mrp != price) else None,
+        "is_promo": 1 if (mrp and price and mrp != price) else 0,
         "available": None,
         "source_url": config.ARPICO_PROMOTIONS_URL,
         "raw_json": {"name": name, "regular_price": regular_price, "promo_price": promo_price},
@@ -102,15 +104,43 @@ def fetch_promotions(scrape_date: str | None = None) -> list[dict]:
     return rows
 
 
-def fetch_catalog(scrape_date: str | None = None) -> list[dict]:
-    raise NotImplementedError(
-        "Arpico's non-promo item catalog was never captured in the original "
-        "project — see this module's docstring for how to find the endpoint."
-    )
+def fetch_basket(scrape_date: str | None = None) -> list[dict]:
+    """Search myarpico.com (OpenCart route=product/search) for every basket
+    item at the Kadawatha store, so regular (non-promo) prices are captured
+    too. Arpico's full category catalogue is still not scraped."""
+    scrape_date = scrape_date or dt.date.today().isoformat()
+    scraped_at = dt.datetime.utcnow().isoformat()
+    headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"}
+    session = requests.Session()
+    session.cookies.update(config.ARPICO_STORE_COOKIES)
+    rows: list[dict] = []
+    for b in basket.load_basket():
+        params = {"route": "product/search", "search": b["search_term"], "language": "en-gb", "limit": "40"}
+        try:
+            resp = session.get(config.ARPICO_PROMOTIONS_URL, params=params, headers=headers, timeout=30)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            print(f"[warn] Arpico basket search '{b['search_term']}' failed: {exc}")
+            continue
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for card in soup.select(".product-thumb")[:40]:
+            row = _to_row(card, scrape_date=scrape_date, scraped_at=scraped_at,
+                          source_stream="basket", category=b["basket_id"])
+            if row:
+                rows.append(row)
+        time.sleep(config.SEARCH_DELAY_SECONDS)
+    return rows
 
 
 def scrape_all(scrape_date: str | None = None) -> list[dict]:
-    return fetch_promotions(scrape_date)
+    rows = fetch_promotions(scrape_date)
+    try:
+        rows += fetch_basket(scrape_date)
+    except Exception as exc:  # noqa: BLE001 - keep the promotions even if search breaks
+        print(f"[warn] Arpico basket search failed: {exc}")
+    if not rows:
+        raise RuntimeError("Arpico returned no products")
+    return rows
 
 
 if __name__ == "__main__":

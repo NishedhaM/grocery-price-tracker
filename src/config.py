@@ -17,6 +17,8 @@ IMPORTANT — two different kinds of Cargills IDs:
 """
 
 CARGILLS_BASE_URL = "https://cargillsonline.com/Web/GetMenuCategoryItemsPagingV3/"
+# Tried in order; V2 is the endpoint used in the proposal's Figure 1 script.
+CARGILLS_ENDPOINTS = [CARGILLS_BASE_URL, "https://cargillsonline.com/Web/GetMenuCategoryItemsPagingV2/"]
 CARGILLS_HOME_URL = "https://cargillsonline.com/"
 
 CARGILLS_CATALOG_CATEGORIES = [
@@ -80,6 +82,8 @@ KEELLS_DEPARTMENTS = [
     {"key": "vegetables_fruits", "department_id": 16},
 ]
 KEELLS_OUTLET_CODE = "SCDR"
+# Search endpoint used by the website's search box (itemDescription = search text).
+KEELLS_SEARCH_URL = "https://zebraliveback.keellssuper.com/2.0/Web/GetItemDetails"
 
 ARPICO_PROMOTIONS_URL = "https://myarpico.com/index.php"
 ARPICO_STORE_COOKIES = {
@@ -119,5 +123,8 @@ SAMPATH_URL = "https://www.sampath.lk"  # promos are in the homepage's "Latest C
 BOC_SUPERMARKETS_URL = "https://www.boc.lk/personal-banking/card-offers/supermarkets"
 # ?cardType=credit_card filters out the separate debit-card list on the same page.
 PEOPLESBANK_SUPERMARKETS_URL = "https://www.peoplesbank.lk/promotion-category/supermarkets/?cardType=credit_card"
+
+# Pause between basket searches so each store sees a polite request rate.
+SEARCH_DELAY_SECONDS = 1.5
 
 GROCERY_KEYWORDS = ["cargills", "food city", "keells", "arpico", "glomark", "spar", "laugfs"]

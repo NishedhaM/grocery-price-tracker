@@ -1,0 +1,71 @@
+basket_id,category,item,pack_size,monthly_qty,search_term,must_contain,must_not_contain
+B001,rice_cereals,Samba rice,5kg,2,samba rice,samba,flour
+B002,rice_cereals,Nadu rice,5kg,2,nadu rice,nadu,flour
+B003,rice_cereals,Red raw rice,5kg,1,red raw rice,red,flour
+B004,rice_cereals,Basmati rice,1kg,1,basmati rice,basmati,flour
+B005,rice_cereals,Rolled oats,500g,1,oats,oat,
+B006,flour_baking,Wheat flour,1kg,3,wheat flour,flour,rice
+B007,flour_baking,Red rice flour (string hopper),1kg,1,rice flour,rice flour,
+B008,flour_baking,White sugar,1kg,3,white sugar,sugar,brown
+B009,flour_baking,Salt,1kg,1,salt 1kg,salt,
+B010,pulses,Red lentils (mysore dhal),1kg,2,red dhal,dhal,
+B011,pulses,Chickpeas,500g,1,chickpea,chick,
+B012,pulses,Green gram,500g,1,green gram,green gram,
+B013,pulses,Soya meat,90g,3,soya meat,soya,
+B014,pulses,Instant noodles,400g,2,noodles,noodle,
+B015,dairy,Full cream milk powder,400g,4,full cream milk powder,milk powder,
+B016,dairy,Fresh milk,1L,4,fresh milk 1l,milk,powder;condensed;flavoured
+B017,dairy,Set yoghurt,80g,12,yoghurt,yoghurt,drinking
+B018,dairy,Butter,200g,1,butter,butter,margarine
+B019,dairy,Cheese slices,200g,1,cheese slices,cheese,
+B020,dairy,Eggs (10 pack),10pcs,3,eggs,egg,noodle;plant
+B021,dairy,Sweetened condensed milk,390g,1,condensed milk,condensed,
+B022,oils_condiments,Coconut oil,1L,2,coconut oil,coconut oil,
+B023,oils_condiments,Vegetable oil,1L,1,vegetable oil,oil,coconut
+B024,oils_condiments,Chilli powder,100g,2,chilli powder,chilli powder,
+B025,oils_condiments,Curry powder,100g,2,curry powder,curry powder,
+B026,oils_condiments,Turmeric powder,50g,1,turmeric powder,turmeric,
+B027,oils_condiments,Black pepper powder,50g,1,pepper powder,pepper,
+B028,oils_condiments,Coconut milk powder,300g,2,coconut milk powder,coconut milk,
+B029,oils_condiments,Tomato sauce,400g,1,tomato sauce,tomato sauce,
+B030,oils_condiments,Maldive fish,100g,1,maldive fish,maldive,
+B031,oils_condiments,Fruit jam,500g,1,jam,jam,
+B032,canned_preserved,Canned mackerel,425g,4,mackerel,mackerel,
+B033,canned_preserved,Canned tuna,185g,2,tuna,tuna,
+B034,meat_fish_packaged,Whole chicken (frozen),1kg,4,whole chicken,chicken,sausage;nugget;breast
+B035,meat_fish_packaged,Chicken sausages,500g,1,chicken sausage,sausage,
+B036,meat_fish_packaged,Dried sprats,200g,1,sprats,sprat,
+B037,beverages,Black tea,400g,1,tea 400g,tea,
+B038,beverages,Instant coffee,100g,1,coffee,coffee,
+B039,beverages,Malted milk drink,400g,2,malted,malt,
+B040,beverages,Soft drink,1.5L,2,soft drink 1.5l,1.5,
+B041,beverages,Fruit cordial,750ml,1,cordial,cordial,
+B042,biscuits_snacks,Cream crackers,500g,2,cream cracker,cracker,
+B043,biscuits_snacks,Marie biscuits,400g,1,marie biscuit,marie,
+B044,vegetables,Big onion,1kg,2,big onion,big onion,
+B045,vegetables,Red onion,1kg,1,red onion,red onion,
+B046,vegetables,Potato,1kg,2,potato,potato,baby;sweet
+B047,vegetables,Garlic,500g,1,garlic,garlic,
+B048,vegetables,Carrot,1kg,2,carrot,carrot,baby
+B049,vegetables,Green beans,1kg,1,beans,beans,
+B050,vegetables,Tomato,1kg,1,tomato,tomato,cherry
+B051,vegetables,Cabbage,1kg,1,cabbage,cabbage,red;chinese;leaves
+B052,vegetables,Leeks,1kg,1,leeks,leek,
+B053,vegetables,Pumpkin,1kg,1,pumpkin,pumpkin,
+B054,vegetables,Brinjal,1kg,1,brinjal,brinjal,
+B055,vegetables,Green chillies,250g,1,green chilli,chil,
+B056,vegetables,Lime,250g,1,lime,lime,
+B057,vegetables,Ginger,250g,1,ginger,ginger,
+B058,vegetables,Coconut,1pcs,8,coconut,coconut,oil;milk
+B059,fruits,Banana (Ambul),1kg,3,banana,banana,
+B060,fruits,Papaya,1kg,2,papaya,papaya,
+B061,personal_care,Bath soap,100g,8,soap,soap,dish;liquid;laundry
+B062,personal_care,Toothpaste,120g,2,toothpaste,toothpaste,
+B063,personal_care,Shampoo,180ml,1,shampoo,shampoo,
+B064,personal_care,Toilet paper (4 rolls),4pcs,2,toilet tissue,tissue,
+B065,personal_care,Sanitary napkins,10pcs,2,sanitary napkin,napkin,
+B066,household_cleaning,Washing powder,1kg,2,washing powder,washing powder,
+B067,household_cleaning,Dishwash liquid,500ml,1,dishwash liquid,dishwash,
+B068,household_cleaning,Toilet cleaner,500ml,1,toilet cleaner,toilet cleaner,
+B069,household_cleaning,Floor cleaner,500ml,1,floor cleaner,floor,
+B070,household_cleaning,Garbage bags,10pcs,1,garbage bag,garbage,

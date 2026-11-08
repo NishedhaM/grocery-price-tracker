@@ -278,7 +278,12 @@ def _extract_grocery_promos(text: str, *, bank: str, url: str) -> list[dict]:
         if not merchant:
             continue
 
-        discount = _nearest_line_match(lines, i, [r"\d+\s?%"])
+        # The promo's own line usually states its rate ("25% OFF ON ... AT KEELLS").
+        # Only fall back to neighbouring lines when it does not — the
+        # neighbours often belong to the next promo block, which is what
+        # made HNB's stored discount disagree with its title.
+        own = re.search(r"\d+(?:\.\d+)?\s?%", line)
+        discount = own.group(0) if own else _nearest_line_match(lines, i, [r"\d+\s?%"])
         # Tighter radius than discount/card_types: a valid-until line is
         # almost always right next to its own promo, and a smaller radius
         # keeps a block with no recognizable date line (rather than
@@ -375,16 +380,68 @@ def scrape_boc(logged_date: str | None = None) -> list[dict]:
     return rows
 
 
+def _peoples_detail_links(url: str) -> list[tuple[str, str]]:
+    """(merchant, detail_url) for each grocery offer card on People's Bank's
+    supermarket page. The listing only shows the merchant name; the
+    discount, minimum spend and valid days are on each offer's own page."""
+    from urllib.parse import urljoin
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                             "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"}
+    resp = requests.get(url, headers=headers, timeout=20)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+    out, seen = [], set()
+    for a in soup.find_all("a", href=True):
+        text = (a.get_text(" ", strip=True) + " " + a["href"]).lower()
+        merchant = next((kw for kw in config.GROCERY_KEYWORDS if kw in text), None)
+        href = urljoin(url, a["href"])
+        if merchant and "peoplesbank.lk" in href and href.rstrip("/") != url.split("?")[0].rstrip("/") \
+                and href not in seen:
+            seen.add(href)
+            out.append((merchant.title(), href))
+    return out
+
+
 def scrape_peoples(logged_date: str | None = None) -> list[dict]:
     logged_date = logged_date or dt.date.today().isoformat()
+    url = config.PEOPLESBANK_SUPERMARKETS_URL
+    rows: list[dict] = []
     try:
-        text = _get_static_text(config.PEOPLESBANK_SUPERMARKETS_URL)
+        links = _peoples_detail_links(url)
     except requests.RequestException as exc:
-        print(f"[warn] People's Bank page failed ({config.PEOPLESBANK_SUPERMARKETS_URL}): {exc}")
+        print(f"[warn] People's Bank page failed ({url}): {exc}")
         return []
-    rows = _extract_grocery_promos(text, bank="People's Bank", url=config.PEOPLESBANK_SUPERMARKETS_URL)
-    for r in rows:
-        r["logged_date"] = logged_date
+
+    for merchant, detail_url in links:
+        try:
+            text = _get_static_text(detail_url)
+        except requests.RequestException as exc:
+            print(f"[warn] People's Bank offer page failed ({detail_url}): {exc}")
+            continue
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        # Keep the lines that carry the offer terms (rate, spend, days, dates).
+        terms = [ln for ln in lines if re.search(
+            r"%|rs\.?\s?[\d,]+|lkr|minimum|maximum|cap|valid|every|monday|tuesday|wednesday|"
+            r"thursday|friday|saturday|sunday|weekend|until|till", ln, re.I)]
+        rate = next((m.group(0) for ln in terms for m in [re.search(r"\d+(?:\.\d+)?\s?%", ln)] if m), "")
+        valid = next((ln for ln in terms if re.search(r"valid|until|till|every", ln, re.I)), "")
+        title = next((ln for ln in terms if "%" in ln), merchant)
+        rows.append({
+            "logged_date": logged_date, "bank": "People's Bank", "merchant": merchant,
+            "title": title[:300], "card_types": _match_card_types(lines, 0, before=0, after=len(lines)),
+            "discount": rate, "valid_until": valid[:200],
+            "description": " | ".join(terms)[:1500], "url": detail_url,
+        })
+
+    if not rows:   # page layout changed: keep the old listing-only behaviour
+        try:
+            text = _get_static_text(url)
+        except requests.RequestException:
+            return []
+        rows = _extract_grocery_promos(text, bank="People's Bank", url=url)
+        for r in rows:
+            r["logged_date"] = logged_date
     return rows
 
 

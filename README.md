@@ -35,6 +35,36 @@ scripts/import_historical.py   one-time import of your June–July 2026 snapshot
 .github/workflows/daily-scrape.yml   the GitHub Actions schedule
 ```
 
+## 0. November 2026 changes (data collection fixes for the ILP model)
+
+- **Fixed basket (`data/basket.csv`).** 70 items across rice, flour, pulses,
+  dairy, oils/spices, canned food, packaged meat/fish, beverages, biscuits,
+  vegetables, fruits, personal care and cleaning, with pack size, monthly
+  quantity, search term and must-contain / must-not-contain words. Every
+  store is searched for every item daily (`source_stream = 'basket'`,
+  `category = basket_id`). Review and edit this file before relying on it.
+- **Cargills.** The daily scraper had been storing only "No Products Found"
+  since it was automated: a plain HTTP session never received the
+  `AuthToken` cookie the June scripts had copied from a browser. It now mints
+  cookies with headless Chrome (like Keells), falls back from the V3 to the
+  V2 endpoint, drops placeholder rows, and raises an error (logged as
+  `failed`) when nothing real comes back.
+- **Keells.** Names are stripped of padding, `uom` (KG / NO) is stored, and
+  promotions are recorded with regular price = amount + promotionDiscountValue.
+- **Arpico.** Basket items are found with the site search, so regular
+  (non-promotion) prices are now captured as well.
+- **HNB.** The discount % is taken from the promo's own line first, which
+  fixes rows whose stored discount belonged to a neighbouring promo.
+- **People's Bank.** Each grocery offer's own page is opened so the rate,
+  minimum spend and valid days are captured, not just the merchant name.
+- **run_log.** Bank scrapers that load but find nothing are logged `empty`.
+- **`scripts/build_ilp_dataset.py`** exports everything to one Excel workbook
+  with ILP-ready sheets (stores, payment options, items, prices, cost matrix,
+  card offers, offer calendar). Run `python scripts/build_ilp_dataset.py`.
+
+After pushing, run the workflow once from **Actions → Run workflow** and
+check the log and `run_log` for `failed` / `empty` lines.
+
 ## 1. One-time setup
 
 1. Create a **private** GitHub repository and push this folder to it.

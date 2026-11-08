@@ -89,7 +89,10 @@ def main() -> int:
                 rows = CREDIT_CARD_SCRAPERS[store](scrape_date)
                 for row in rows:
                     db.upsert_credit_card_promo(conn, row)
-                _safe_log_run(run_at, store, "ok", rows_written=len(rows))
+                # 0 rows is logged as 'empty', not 'ok', so a silently broken
+                # bank page (as happened with ComBank/Sampath/BOC) is visible.
+                _safe_log_run(run_at, store, "ok" if rows else "empty", rows_written=len(rows),
+                              message="" if rows else "page loaded but no grocery promos found")
                 print(f"[ok] {store}: {len(rows)} credit-card promo rows for {scrape_date}")
             except Exception as exc:  # noqa: BLE001
                 conn.rollback()
