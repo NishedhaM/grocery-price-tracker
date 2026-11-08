@@ -123,7 +123,7 @@ def scrape_basket(headers: dict, cookies: dict, *, scrape_date: str, scraped_at:
 
 def scrape_all(scrape_date: str | None = None) -> list[dict]:
     scrape_date = scrape_date or dt.date.today().isoformat()
-    scraped_at = dt.datetime.utcnow().isoformat()
+    scraped_at = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None).isoformat()
 
     cookies, usersessionid = _get_session_cookies()
     if not usersessionid:

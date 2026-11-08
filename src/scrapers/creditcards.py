@@ -261,6 +261,16 @@ def _match_card_types(lines: list[str], i: int, *, before: int = 4, after: int =
     return ", ".join(found)
 
 
+def _find_merchant(text: str) -> str | None:
+    """Whole-word match against config.GROCERY_KEYWORDS, so 'spar' does not
+    match 'spark' (People's Bank's 'Spark programme' page was picked up)."""
+    low = (text or "").lower()
+    for kw in config.GROCERY_KEYWORDS:
+        if re.search(rf"(?<![a-z]){re.escape(kw)}(?![a-z])", low):
+            return kw
+    return None
+
+
 def _extract_grocery_promos(text: str, *, bank: str, url: str) -> list[dict]:
     """Scan rendered page text for lines mentioning a grocery chain, and
     pull a discount % / valid-date / card type from the nearby lines.
@@ -274,7 +284,7 @@ def _extract_grocery_promos(text: str, *, bank: str, url: str) -> list[dict]:
 
     for i, line in enumerate(lines):
         low = line.lower()
-        merchant = next((kw for kw in config.GROCERY_KEYWORDS if kw in low), None)
+        merchant = _find_merchant(low)
         if not merchant:
             continue
 
@@ -393,8 +403,8 @@ def _peoples_detail_links(url: str) -> list[tuple[str, str]]:
     soup = BeautifulSoup(resp.text, "html.parser")
     out, seen = [], set()
     for a in soup.find_all("a", href=True):
-        text = (a.get_text(" ", strip=True) + " " + a["href"]).lower()
-        merchant = next((kw for kw in config.GROCERY_KEYWORDS if kw in text), None)
+        text = (a.get_text(" ", strip=True) + " " + a["href"].replace("-", " ").replace("/", " ")).lower()
+        merchant = _find_merchant(text)
         href = urljoin(url, a["href"])
         if merchant and "peoplesbank.lk" in href and href.rstrip("/") != url.split("?")[0].rstrip("/") \
                 and href not in seen:

@@ -82,7 +82,7 @@ def _to_row(card, *, scrape_date: str, scraped_at: str, source_stream: str = "pr
 
 def fetch_promotions(scrape_date: str | None = None) -> list[dict]:
     scrape_date = scrape_date or dt.date.today().isoformat()
-    scraped_at = dt.datetime.utcnow().isoformat()
+    scraped_at = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None).isoformat()
 
     headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"}
     session = requests.Session()
@@ -109,7 +109,7 @@ def fetch_basket(scrape_date: str | None = None) -> list[dict]:
     item at the Kadawatha store, so regular (non-promo) prices are captured
     too. Arpico's full category catalogue is still not scraped."""
     scrape_date = scrape_date or dt.date.today().isoformat()
-    scraped_at = dt.datetime.utcnow().isoformat()
+    scraped_at = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None).isoformat()
     headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en-US,en;q=0.9"}
     session = requests.Session()
     session.cookies.update(config.ARPICO_STORE_COOKIES)

@@ -42,10 +42,15 @@ CREDIT_CARD_SCRAPERS = {
 }
 
 
+# Run by default: the proposal's scope (3 chains, 3 banks). The other bank
+# scrapers stay available, e.g.  python -m src.run_daily --stores combank
+DEFAULT_TARGETS = ["cargills", "keells", "arpico", "hnb", "peoples", "seylan"]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     all_targets = list(SCRAPERS.keys()) + list(CREDIT_CARD_SCRAPERS.keys())
-    parser.add_argument("--stores", default=",".join(all_targets),
+    parser.add_argument("--stores", default=",".join(DEFAULT_TARGETS),
                          help="comma-separated subset of: " + ",".join(all_targets))
     parser.add_argument("--date", default=None, help="YYYY-MM-DD; defaults to today")
     args = parser.parse_args()
@@ -69,7 +74,7 @@ def main() -> int:
 
     exit_code = 0
     for store in requested:
-        run_at = dt.datetime.utcnow().isoformat()
+        run_at = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None).isoformat()
 
         if store in SCRAPERS:
             try:
@@ -93,7 +98,7 @@ def main() -> int:
                 # bank page (as happened with ComBank/Sampath/BOC) is visible.
                 _safe_log_run(run_at, store, "ok" if rows else "empty", rows_written=len(rows),
                               message="" if rows else "page loaded but no grocery promos found")
-                print(f"[ok] {store}: {len(rows)} credit-card promo rows for {scrape_date}")
+                print(f"[{'ok' if rows else 'empty'}] {store}: {len(rows)} credit-card promo rows for {scrape_date}")
             except Exception as exc:  # noqa: BLE001
                 conn.rollback()
                 _safe_log_run(run_at, store, "failed", rows_written=0, message=str(exc))
